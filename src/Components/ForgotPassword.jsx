@@ -3,7 +3,7 @@ import "./ForgotPassword.css";
 
 export default function ForgotPassword({ setView }) {
   // ====== ESTADO ======
-  const [step, setStep] = useState("search"); // search | method | code | reset
+  const [step, setStep] = useState("search"); // search | method | code | password | reset
   const [contact, setContact] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -11,6 +11,9 @@ export default function ForgotPassword({ setView }) {
 
   const [verificationCode, setVerificationCode] = useState("");
   const [codeSubmitted, setCodeSubmitted] = useState(false);
+
+  const [password, setPassword] = useState("");
+  const [passwordLoginSubmitted, setPasswordLoginSubmitted] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
   const [passwordSubmitted, setPasswordSubmitted] = useState(false);
@@ -22,9 +25,7 @@ export default function ForgotPassword({ setView }) {
   // ====== COOLDOWN ======
   useEffect(() => {
     if (cooldown <= 0) return;
-    const id = setInterval(() => {
-      setCooldown((c) => c - 1);
-    }, 1000);
+    const id = setInterval(() => setCooldown((c) => c - 1), 1000);
     return () => clearInterval(id);
   }, [cooldown]);
 
@@ -95,7 +96,7 @@ export default function ForgotPassword({ setView }) {
     if (selectedMethod === "code") {
       setStep("code");
     } else {
-      alert("Ir a login con contraseña");
+      setStep("password"); // 👈 pantalla tipo imagen 2
     }
   };
 
@@ -113,6 +114,15 @@ export default function ForgotPassword({ setView }) {
     setStep("reset");
   };
 
+  const handleLoginWithPassword = (e) => {
+    e.preventDefault();
+    setPasswordLoginSubmitted(true);
+    if (password.trim() === "") return;
+
+    console.log("Login con contraseña:", password);
+    alert("Aquí validarías login real");
+  };
+
   const handleResetPassword = (e) => {
     e.preventDefault();
     setPasswordSubmitted(true);
@@ -121,14 +131,14 @@ export default function ForgotPassword({ setView }) {
     console.log("Nueva contraseña:", newPassword);
     console.log("Cerrar sesiones:", logoutAll);
 
-    alert("Contraseña actualizada correctamente hace login");
+    alert("Contraseña actualizada correctamente");
   };
 
   // ====== STEP: RESET ======
   if (step === "reset") {
     return (
-            <div className="forgot-page">
-            <div className="forgot-wrapper">
+      <div className="forgot-page">
+        <div className="forgot-wrapper">
           <h1 className="forgot-title">Crea una contraseña nueva</h1>
 
           <p className="forgot-subtitle">
@@ -136,7 +146,7 @@ export default function ForgotPassword({ setView }) {
             tenga al menos 6 caracteres.
           </p>
 
-            <div className="account-card">
+          <div className="account-card">
             <div className="account-avatar">AR</div>
             <div className="account-info">
               <p className="account-name">{foundAccount.name}</p>
@@ -172,7 +182,7 @@ export default function ForgotPassword({ setView }) {
             <button
               type="button"
               className="forgot-secondary-button"
-              onClick={() => alert("Se omitió el cambio de contraseña hace login")}
+              onClick={() => alert("Se omitió el cambio de contraseña")}
             >
               Omitir
             </button>
@@ -184,10 +194,69 @@ export default function ForgotPassword({ setView }) {
                 onChange={() => setLogoutAll(!logoutAll)}
               />
               <span>
-                Cierra el resto de las sesiones para asegurarte de que nadie más
-                pueda acceder a tu cuenta.
+                Cerrar el resto de las sesiones para asegurarte de que nadie más
+                pueda acceder a tu cuenta
               </span>
             </label>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ====== STEP: PASSWORD (imagen 2) ======
+  if (step === "password") {
+    return (
+      <div className="forgot-page">
+        <div className="forgot-wrapper">
+          <button
+            type="button"
+            className="forgot-back-button"
+            onClick={() => setStep("method")}
+          >
+            ←
+          </button>
+
+          <div className="account-card">
+            <div className="account-avatar">AR</div>
+            <div className="account-info">
+              <p className="account-name">{foundAccount.name}</p>
+              <p className="account-provider">
+                {foundAccount.provider}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleLoginWithPassword} className="forgot-form">
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`forgot-input ${
+                passwordLoginSubmitted && password.trim() === ""
+                  ? "input-error"
+                  : ""
+              }`}
+            />
+
+            {passwordLoginSubmitted && password.trim() === "" && (
+              <p className="forgot-message forgot-error with-icon">
+                Deberás ingresar una contraseña para continuar.
+              </p>
+            )}
+
+            <button className="forgot-primary-button">
+              Iniciar sesión
+            </button>
+
+            <button
+              type="button"
+              className="forgot-secondary-button"
+              onClick={() => setStep("method")}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
           </form>
         </div>
       </div>
@@ -233,7 +302,6 @@ export default function ForgotPassword({ setView }) {
               placeholder="Ingresa el código"
             />
 
-            {/* ERRORES */}
             {codeSubmitted && verificationCode.trim() === "" && (
               <p className="forgot-message forgot-error with-icon">
                 Ingresa un código.
@@ -276,7 +344,7 @@ export default function ForgotPassword({ setView }) {
     );
   }
 
-  // ====== STEP: METHOD ======
+  // ====== STEP: METHOD (imagen 1) ======
   if (step === "method") {
     return (
       <div className="forgot-page">
@@ -293,7 +361,6 @@ export default function ForgotPassword({ setView }) {
             Elige un método para iniciar sesión
           </h1>
 
-          {/* CARD USUARIO */}
           <div className="account-card">
             <div className="account-avatar">AR</div>
             <div className="account-info">
@@ -304,7 +371,6 @@ export default function ForgotPassword({ setView }) {
             </div>
           </div>
 
-          {/* OPCIONES */}
           <div className="method-card">
             <button
               type="button"
@@ -399,7 +465,8 @@ export default function ForgotPassword({ setView }) {
         </button>
 
         <h1 className="forgot-title">Encuentra tu cuenta</h1>
-        <h1 className="forgot-subtitle">Ingresa tu número de celular o correo electrónico para recuperar tu contraseña.</h1>
+        <h1 className="forgot-subtitle">Ingresa tu número de celular o correo electrónico para recuperar tu contraseña</h1>
+
         <form onSubmit={handleSearchSubmit} className="forgot-form">
           <input
             value={contact}
@@ -407,17 +474,19 @@ export default function ForgotPassword({ setView }) {
             className={`forgot-input ${
               contactEmpty || contactInvalid ? "input-error" : ""
             }`}
-            placeholder="Ingresa tu número o correo electrónico."
+            placeholder="Correo o celular"
           />
 
           {contactEmpty && (
-            <p className="forgot-error forgot-error with-icon">
-                Deberás ingresar un número de celular o correo electrónico para continuar.
+            <p className="forgot-message forgot-error with-icon">
+              Deberás ingresar un número de celular o correo electrónico para continuar.
             </p>
           )}
 
           {contactInvalid && (
-            <p className="forgot-error forgot-error with-icon">Formato inválido</p>
+            <p className="forgot-message forgot-error with-icon">
+              Formato inválido
+            </p>
           )}
 
           <button className="forgot-primary-button">
