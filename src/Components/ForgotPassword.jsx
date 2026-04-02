@@ -22,6 +22,8 @@ export default function ForgotPassword({ setView }) {
   const [cooldown, setCooldown] = useState(0);
   const [showToast, setShowToast] = useState(false);
 
+  const [showNoAccessModal, setShowNoAccessModal] = useState(false);
+
   // ====== COOLDOWN ======
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -427,9 +429,12 @@ export default function ForgotPassword({ setView }) {
             </button>
           </div>
 
-          <button className="forgot-link-button">
-            ¿Ya no tienes acceso?
-          </button>
+          <button
+  className="forgot-link-button"
+  onClick={() => setStep("noAccess")}
+>
+  ¿Ya no tienes acceso?
+</button>
 
           <button
             className="forgot-primary-button"
@@ -452,6 +457,90 @@ export default function ForgotPassword({ setView }) {
       </div>
     );
   }
+
+  if (step === "noAccess") {
+  return (
+    <div className="forgot-page">
+      <div className="forgot-wrapper">
+
+        <button
+          className="forgot-back-button"
+          onClick={() => setStep("method")}
+        >
+          ←
+        </button>
+
+        <h1 className="forgot-title">
+          Prueba con otro dispositivo para continuar
+        </h1>
+
+        <p className="forgot-subtitle">
+          Tiene que ser un dispositivo que hayas usado para iniciar sesión
+          anteriormente en esta cuenta.
+        </p>
+
+        {/* IMAGEN */}
+        <div className="no-access-image">
+          <img
+            src="/src/assets/otherDevice.png"
+            alt="device"
+          />
+        </div>
+
+        <h2 className="forgot-subtitle-title">¿Por qué?</h2>
+
+        <p className="forgot-subtitle">
+          No pudimos vincular el dispositivo que estás usando con la cuenta que
+          intentas recuperar, por lo que no es seguro continuar.
+        </p>
+
+       <button
+  className="forgot-secondary-button"
+  onClick={() => setShowNoAccessModal(true)}>
+  ¿No puedes probar con otro dispositivo?
+</button>
+
+{showNoAccessModal && (
+  <div className="modal-overlay" onClick={() => setShowNoAccessModal(false)}>
+    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+
+      <button
+        className="modal-close"
+        onClick={() => setShowNoAccessModal(false)}
+      >
+        ×
+      </button>
+
+      <h2 className="modal-title">
+        ¿No puedes probar con otro dispositivo?
+      </h2>
+
+      <p className="modal-text">
+        Si ya no puedes acceder a tu correo electrónico o número de teléfono y no
+        tienes acceso a un dispositivo que hayas usado anteriormente para iniciar
+        sesión en esta cuenta, no es seguro que te proporcionemos otra forma de entrar.
+      </p>
+
+      <p className="modal-text">
+        Entendemos que posiblemente esto no te ayude a volver a acceder, pero debemos
+        tomar esta medida para evitar accesos no autorizados.
+      </p>
+
+      <button
+        className="forgot-primary-button"
+        onClick={() => setShowNoAccessModal(false)}
+      >
+        Cerrar
+      </button>
+
+    </div>
+  </div>
+)}
+
+      </div>
+    </div>
+  );
+}
 
   // ====== STEP: SEARCH ======
   return (
