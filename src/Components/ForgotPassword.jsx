@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./ForgotPassword.css";
 
 export default function ForgotPassword({ setView }) {
-  // ====== ESTADO ======
-  const [step, setStep] = useState("search"); // search | method | code | password | reset
+  const [step, setStep] = useState("search");
   const [contact, setContact] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const [selectedMethod, setSelectedMethod] = useState("code");
 
-  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationCode, setVerificationCode] = useState(Array(6).fill(""));
   const [codeSubmitted, setCodeSubmitted] = useState(false);
+  const inputsRef = useRef([]);
 
   const [password, setPassword] = useState("");
   const [passwordLoginSubmitted, setPasswordLoginSubmitted] = useState(false);
@@ -24,26 +24,45 @@ export default function ForgotPassword({ setView }) {
 
   const [showNoAccessModal, setShowNoAccessModal] = useState(false);
 
-  // ====== COOLDOWN ======
   useEffect(() => {
     if (cooldown <= 0) return;
     const id = setInterval(() => setCooldown((c) => c - 1), 1000);
     return () => clearInterval(id);
   }, [cooldown]);
 
-  // ====== VALIDACIONES ======
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShowNoAccessModal(false);
+      }
+    };
+
+    if (showNoAccessModal) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "auto";
+    };
+  }, [showNoAccessModal]);
+
   const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
   const isValidPhone = (v) => {
     const d = v.replace(/\D/g, "");
     return d.length >= 10 && d.length <= 15;
   };
+
   const isValidContact = (v) => isValidEmail(v) || isValidPhone(v);
 
   const contactEmpty = submitted && contact.trim() === "";
   const contactInvalid =
     submitted && contact.trim() !== "" && !isValidContact(contact);
 
-  // ====== MASK DINÁMICO ======
   const foundAccount = useMemo(() => {
     const trimmed = contact.trim();
 
@@ -71,22 +90,39 @@ export default function ForgotPassword({ setView }) {
     };
   }, [contact]);
 
-  // ====== CLASE INPUT OTP ======
-  const getCodeInputClassName = () => {
-    const empty = codeSubmitted && verificationCode.trim() === "";
-    const invalid =
-      codeSubmitted &&
-      verificationCode.trim() !== "" &&
-      !/^\d{6}$/.test(verificationCode);
+  const codeString = verificationCode.join("");
 
-    if (empty || invalid) return "forgot-input input-error";
-    if (/^\d{6}$/.test(verificationCode))
-      return "forgot-input input-success";
+  const handleCodeChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
 
-    return "forgot-input";
+    const next = [...verificationCode];
+    next[index] = value;
+    setVerificationCode(next);
+
+    if (value && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
   };
 
-  // ====== HANDLERS ======
+  const handleCodeKeyDown = (e, index) => {
+    if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    }
+  };
+
+  const handleCodePaste = (e) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+
+    const next = Array(6).fill("");
+    pasted.split("").forEach((digit, idx) => {
+      next[idx] = digit;
+    });
+
+    setVerificationCode(next);
+    inputsRef.current[Math.min(pasted.length - 1, 5)]?.focus();
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setSubmitted(true);
@@ -98,7 +134,7 @@ export default function ForgotPassword({ setView }) {
     if (selectedMethod === "code") {
       setStep("code");
     } else {
-      setStep("password"); // 👈 pantalla tipo imagen 2
+      setStep("password");
     }
   };
 
@@ -112,7 +148,7 @@ export default function ForgotPassword({ setView }) {
   const handleVerifyCode = (e) => {
     e.preventDefault();
     setCodeSubmitted(true);
-    if (!/^\d{6}$/.test(verificationCode)) return;
+    if (codeString.length !== 6) return;
     setStep("reset");
   };
 
@@ -121,7 +157,6 @@ export default function ForgotPassword({ setView }) {
     setPasswordLoginSubmitted(true);
     if (password.trim() === "") return;
 
-    console.log("Login con contraseña:", password);
     alert("Aquí validarías login real");
   };
 
@@ -130,13 +165,9 @@ export default function ForgotPassword({ setView }) {
     setPasswordSubmitted(true);
     if (newPassword.length < 6) return;
 
-    console.log("Nueva contraseña:", newPassword);
-    console.log("Cerrar sesiones:", logoutAll);
-
     alert("Contraseña actualizada correctamente");
   };
 
-  // ====== STEP: RESET ======
   if (step === "reset") {
     return (
       <div className="forgot-page">
@@ -152,9 +183,7 @@ export default function ForgotPassword({ setView }) {
             <div className="account-avatar">AR</div>
             <div className="account-info">
               <p className="account-name">{foundAccount.name}</p>
-              <p className="account-provider">
-                {foundAccount.provider}
-              </p>
+              <p className="account-provider">{foundAccount.provider}</p>
             </div>
           </div>
 
@@ -165,9 +194,7 @@ export default function ForgotPassword({ setView }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className={`forgot-input ${
-                passwordSubmitted && newPassword.length < 6
-                  ? "input-error"
-                  : ""
+                passwordSubmitted && newPassword.length < 6 ? "input-error" : ""
               }`}
             />
 
@@ -177,9 +204,7 @@ export default function ForgotPassword({ setView }) {
               </p>
             )}
 
-            <button className="forgot-primary-button">
-              Continuar
-            </button>
+            <button className="forgot-primary-button">Continuar</button>
 
             <button
               type="button"
@@ -206,7 +231,6 @@ export default function ForgotPassword({ setView }) {
     );
   }
 
-  // ====== STEP: PASSWORD (imagen 2) ======
   if (step === "password") {
     return (
       <div className="forgot-page">
@@ -223,9 +247,7 @@ export default function ForgotPassword({ setView }) {
             <div className="account-avatar">AR</div>
             <div className="account-info">
               <p className="account-name">{foundAccount.name}</p>
-              <p className="account-provider">
-                {foundAccount.provider}
-              </p>
+              <p className="account-provider">{foundAccount.provider}</p>
             </div>
           </div>
 
@@ -248,9 +270,7 @@ export default function ForgotPassword({ setView }) {
               </p>
             )}
 
-            <button className="forgot-primary-button">
-              Iniciar sesión
-            </button>
+            <button className="forgot-primary-button">Iniciar sesión</button>
 
             <button
               type="button"
@@ -265,7 +285,6 @@ export default function ForgotPassword({ setView }) {
     );
   }
 
-  // ====== STEP: CODE ======
   if (step === "code") {
     return (
       <div className="forgot-page">
@@ -286,41 +305,44 @@ export default function ForgotPassword({ setView }) {
           <h1 className="forgot-title">Confirma tu cuenta</h1>
 
           <p className="forgot-subtitle">
-            Enviamos un código a{" "}
-            <strong>{foundAccount.maskedDestination}</strong>. Ingrésalo para
-            confirmar tu cuenta.
+            Enviamos un código a <strong>{foundAccount.maskedDestination}</strong>.
+            Ingrésalo para confirmar tu cuenta.
           </p>
 
           <form onSubmit={handleVerifyCode} className="forgot-form">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={verificationCode}
-              onChange={(e) =>
-                setVerificationCode(e.target.value.replace(/\D/g, ""))
-              }
-              className={getCodeInputClassName()}
-              placeholder="Ingresa el código"
-            />
+            <div className="otp-container" onPaste={handleCodePaste}>
+              {verificationCode.map((digit, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  ref={(el) => {
+                    inputsRef.current[index] = el;
+                  }}
+                  onChange={(e) => handleCodeChange(e.target.value, index)}
+                  onKeyDown={(e) => handleCodeKeyDown(e, index)}
+                  className={`otp-input ${
+                    codeSubmitted && codeString.length !== 6 ? "input-error" : ""
+                  }`}
+                />
+              ))}
+            </div>
 
-            {codeSubmitted && verificationCode.trim() === "" && (
+            {codeSubmitted && codeString.length === 0 && (
               <p className="forgot-message forgot-error with-icon">
                 Ingresa un código.
               </p>
             )}
 
-            {codeSubmitted &&
-              verificationCode.trim() !== "" &&
-              !/^\d{6}$/.test(verificationCode) && (
-                <p className="forgot-message forgot-error with-icon">
-                  El código debe tener 6 dígitos.
-                </p>
-              )}
+            {codeSubmitted && codeString.length > 0 && codeString.length < 6 && (
+              <p className="forgot-message forgot-error with-icon">
+                El código debe tener 6 dígitos.
+              </p>
+            )}
 
-            <button className="forgot-primary-button">
-              Continuar
-            </button>
+            <button className="forgot-primary-button">Continuar</button>
 
             <button
               type="button"
@@ -338,15 +360,96 @@ export default function ForgotPassword({ setView }) {
         </div>
 
         {showToast && (
-          <div className="toast">
-            Se ha enviado el código correctamente
+          <div className="toast">Se ha enviado el código correctamente</div>
+        )}
+      </div>
+    );
+  }
+
+  if (step === "noAccess") {
+    return (
+      <div className="forgot-page">
+        <div className="forgot-wrapper">
+          <button
+            className="forgot-back-button"
+            onClick={() => setStep("method")}
+          >
+            ←
+          </button>
+
+          <h1 className="forgot-title">
+            Prueba con otro dispositivo para continuar
+          </h1>
+
+          <p className="forgot-subtitle">
+            Tiene que ser un dispositivo que hayas usado para iniciar sesión
+            anteriormente en esta cuenta.
+          </p>
+
+          <div className="no-access-image">
+            <img src="/src/assets/OtherDevice.png" alt="Otro dispositivo" />
+          </div>
+
+          <h2 className="forgot-subtitle-title">¿Por qué?</h2>
+
+          <p className="forgot-subtitle">
+            No pudimos vincular el dispositivo que estás usando con la cuenta que
+            intentas recuperar, por lo que no es seguro continuar.
+          </p>
+
+          <button
+            className="forgot-secondary-button"
+            onClick={() => setShowNoAccessModal(true)}
+          >
+            ¿No puedes probar con otro dispositivo?
+          </button>
+        </div>
+
+        {showNoAccessModal && (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowNoAccessModal(false)}
+          >
+            <div
+              className="modal-card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="modal-close"
+                onClick={() => setShowNoAccessModal(false)}
+              >
+                ×
+              </button>
+
+              <h2 className="modal-title">
+                ¿No puedes probar con otro dispositivo?
+              </h2>
+
+              <p className="modal-text">
+                Si ya no puedes acceder a tu correo electrónico o número de
+                teléfono y no tienes acceso a un dispositivo que hayas usado
+                anteriormente para iniciar sesión en esta cuenta, no es seguro que
+                te proporcionemos otra forma de entrar.
+              </p>
+
+              <p className="modal-text">
+                Entendemos que posiblemente esto no te ayude a volver a acceder,
+                pero debemos tomar esta medida para evitar accesos no autorizados.
+              </p>
+
+              <button
+                className="forgot-primary-button"
+                onClick={() => setShowNoAccessModal(false)}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         )}
       </div>
     );
   }
 
-  // ====== STEP: METHOD (imagen 1) ======
   if (step === "method") {
     return (
       <div className="forgot-page">
@@ -359,17 +462,13 @@ export default function ForgotPassword({ setView }) {
             ←
           </button>
 
-          <h1 className="forgot-title">
-            Elige un método para iniciar sesión
-          </h1>
+          <h1 className="forgot-title">Elige un método para iniciar sesión</h1>
 
           <div className="account-card">
             <div className="account-avatar">AR</div>
             <div className="account-info">
               <p className="account-name">{foundAccount.name}</p>
-              <p className="account-provider">
-                {foundAccount.provider}
-              </p>
+              <p className="account-provider">{foundAccount.provider}</p>
             </div>
           </div>
 
@@ -377,9 +476,7 @@ export default function ForgotPassword({ setView }) {
             <button
               type="button"
               className={`method-option ${
-                selectedMethod === "code"
-                  ? "method-option-selected"
-                  : ""
+                selectedMethod === "code" ? "method-option-selected" : ""
               }`}
               onClick={() => setSelectedMethod("code")}
             >
@@ -394,9 +491,7 @@ export default function ForgotPassword({ setView }) {
 
               <span
                 className={`radio-circle ${
-                  selectedMethod === "code"
-                    ? "radio-circle-selected"
-                    : ""
+                  selectedMethod === "code" ? "radio-circle-selected" : ""
                 }`}
               />
             </button>
@@ -404,16 +499,12 @@ export default function ForgotPassword({ setView }) {
             <button
               type="button"
               className={`method-option ${
-                selectedMethod === "password"
-                  ? "method-option-selected"
-                  : ""
+                selectedMethod === "password" ? "method-option-selected" : ""
               }`}
               onClick={() => setSelectedMethod("password")}
             >
               <div className="method-texts">
-                <p className="method-title">
-                  Continuar con contraseña
-                </p>
+                <p className="method-title">Continuar con contraseña</p>
                 <p className="method-subtitle">
                   Usa tu contraseña para continuar
                 </p>
@@ -421,22 +512,22 @@ export default function ForgotPassword({ setView }) {
 
               <span
                 className={`radio-circle ${
-                  selectedMethod === "password"
-                    ? "radio-circle-selected"
-                    : ""
+                  selectedMethod === "password" ? "radio-circle-selected" : ""
                 }`}
               />
             </button>
           </div>
 
           <button
-  className="forgot-link-button"
-  onClick={() => setStep("noAccess")}
->
-  ¿Ya no tienes acceso?
-</button>
+            type="button"
+            className="forgot-link-button"
+            onClick={() => setStep("noAccess")}
+          >
+            ¿Ya no tienes acceso?
+          </button>
 
           <button
+            type="button"
             className="forgot-primary-button"
             onClick={handleContinueMethod}
           >
@@ -444,6 +535,7 @@ export default function ForgotPassword({ setView }) {
           </button>
 
           <button
+            type="button"
             className="forgot-secondary-button"
             onClick={() => {
               setStep("search");
@@ -458,91 +550,6 @@ export default function ForgotPassword({ setView }) {
     );
   }
 
-  if (step === "noAccess") {
-  return (
-    <div className="forgot-page">
-      <div className="forgot-wrapper">
-
-        <button
-          className="forgot-back-button"
-          onClick={() => setStep("method")}
-        >
-          ←
-        </button>
-
-        <h1 className="forgot-title">
-          Prueba con otro dispositivo para continuar
-        </h1>
-
-        <p className="forgot-subtitle">
-          Tiene que ser un dispositivo que hayas usado para iniciar sesión
-          anteriormente en esta cuenta.
-        </p>
-
-        {/* IMAGEN */}
-        <div className="no-access-image">
-          <img
-            src="/src/assets/otherDevice.png"
-            alt="device"
-          />
-        </div>
-
-        <h2 className="forgot-subtitle-title">¿Por qué?</h2>
-
-        <p className="forgot-subtitle">
-          No pudimos vincular el dispositivo que estás usando con la cuenta que
-          intentas recuperar, por lo que no es seguro continuar.
-        </p>
-
-       <button
-  className="forgot-secondary-button"
-  onClick={() => setShowNoAccessModal(true)}>
-  ¿No puedes probar con otro dispositivo?
-</button>
-
-{showNoAccessModal && (
-  <div className="modal-overlay" onClick={() => setShowNoAccessModal(false)}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-
-      <button
-        className="modal-close"
-        onClick={() => setShowNoAccessModal(false)}
-      >
-        ×
-      </button>
-
-      <h2 className="modal-title">
-        ¿No puedes probar con otro dispositivo?
-      </h2>
-
-      <p className="modal-text">
-        Si ya no puedes acceder a tu correo electrónico o número de teléfono y no
-        tienes acceso a un dispositivo que hayas usado anteriormente para iniciar
-        sesión en esta cuenta, no es seguro que te proporcionemos otra forma de entrar.
-      </p>
-
-      <p className="modal-text">
-        Entendemos que posiblemente esto no te ayude a volver a acceder, pero debemos
-        tomar esta medida para evitar accesos no autorizados.
-      </p>
-
-      <button
-        className="forgot-primary-button"
-        onClick={() => setShowNoAccessModal(false)}
-      >
-        Cerrar
-      </button>
-
-    </div>
-  </div>
-)}
-
-      </div>
-    </div>
-  );
-}
-
-  // ====== STEP: SEARCH ======
   return (
     <div className="forgot-page">
       <div className="forgot-wrapper">
@@ -554,7 +561,10 @@ export default function ForgotPassword({ setView }) {
         </button>
 
         <h1 className="forgot-title">Encuentra tu cuenta</h1>
-        <h1 className="forgot-subtitle">Ingresa tu número de celular o correo electrónico para recuperar tu contraseña</h1>
+        <p className="forgot-subtitle">
+          Ingresa tu número de celular o correo electrónico para recuperar tu
+          contraseña
+        </p>
 
         <form onSubmit={handleSearchSubmit} className="forgot-form">
           <input
@@ -568,7 +578,8 @@ export default function ForgotPassword({ setView }) {
 
           {contactEmpty && (
             <p className="forgot-message forgot-error with-icon">
-              Deberás ingresar un número de celular o correo electrónico para continuar.
+              Deberás ingresar un número de celular o correo electrónico para
+              continuar.
             </p>
           )}
 
@@ -578,9 +589,7 @@ export default function ForgotPassword({ setView }) {
             </p>
           )}
 
-          <button className="forgot-primary-button">
-            Continuar
-          </button>
+          <button className="forgot-primary-button">Continuar</button>
         </form>
       </div>
     </div>
